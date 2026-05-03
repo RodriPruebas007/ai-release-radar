@@ -1021,27 +1021,68 @@ def generate_signal(best):
     return response.output_text.strip()
 
 
+def safe_image_text(text, max_chars=42, fallback="Cambio importante"):
+    text = clean_summary_text(text or "")
+    text = re.sub(r"\[[^\]]*\]", " ", text)
+    text = re.sub(r"\b(TODO|TBD|PLACEHOLDER|N/A|NULL)\b", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"[\\<>{}*_`~|]+", " ", text)
+    text = re.sub(r"[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ .,;:()/&+\-]", " ", text)
+    text = re.sub(r"\b(v?\d+(?:\.\d+){1,4})\b", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+", " ", text).strip(" -:|.,")
+
+    if not text:
+        text = fallback
+
+    if len(text) <= max_chars:
+        return text
+
+    clipped = text[:max_chars].rsplit(" ", 1)[0].strip(" -:|.,")
+    if len(clipped) < max(12, max_chars // 2):
+        clipped = text[:max_chars].strip(" -:|.,")
+    return clipped or fallback
+
+
+def canonical_provider_name(provider):
+    text = (provider or "").lower()
+
+    if "anthropic" in text or "claude" in text:
+        return "Anthropic"
+    if "openai" in text or "chatgpt" in text or "gpt" in text or "sora" in text:
+        return "OpenAI"
+    if "aws" in text or "amazon" in text:
+        return "AWS"
+    if "google" in text or "gemini" in text or "deepmind" in text or "vertex" in text:
+        return "Google"
+    return safe_image_text(provider, max_chars=24, fallback="Proveedor")
+
+
 def compact_image_title(release, max_chars=60):
     title = release.get("human_title") or build_human_title(release)
     if not title:
         title = clean_summary_text(release.get("title", ""))
 
-    title = re.sub(r"\s+", " ", title).strip().rstrip(".")
-    title = re.sub(r"\b(v?\d+(?:\.\d+){1,3})\b", "", title, flags=re.IGNORECASE)
-    title = re.sub(r"\s+", " ", title).strip(" -:|")
-
-    if not title:
-        title = f"{provider_name(release)} actualiza {product_key(release)}"
-
-    if len(title) <= max_chars:
-        return title
-    return title[: max_chars - 3].rstrip() + "..."
+    fallback = f"{canonical_provider_name(provider_name(release))} actualiza IA"
+    return safe_image_text(title, max_chars=max_chars, fallback=fallback)
 
 
 def image_template(release):
     text = f"{release.get('title', '')} {release.get('summary', '')} {release.get('link', '')}".lower()
 
-    if _matches_any(text, ["deprecated", "deprecation", "pricing", "availability", "available", "lower latency"]):
+    if _matches_any(
+        text,
+        [
+            "deprecated",
+            "deprecation",
+            "pricing",
+            "availability",
+            "available",
+            "lower latency",
+            "login",
+            "cleanup",
+            "fixes",
+            "improves",
+        ],
+    ):
         return "BEFORE_AFTER"
     if _matches_any(text, ["api", "sdk", "agents", "agent", "tools", "function calling", "vertex ai"]):
         return "ARCHITECTURE"
@@ -1052,30 +1093,118 @@ def image_template_instruction(template):
     instructions = {
         "FLOW": (
             "Use the FLOW template only: three clean blocks in one horizontal sequence, "
-            "A -> B -> C, with arrows between blocks."
+            "using node_1 -> node_2 -> node_3."
         ),
         "BEFORE_AFTER": (
             "Use the BEFORE_AFTER template only: two clean columns labeled exactly "
-            "ANTES and DESPUES, with [X] -> [Y] as the central comparison."
+            "ANTES and DESPUES, with before_text -> after_text as the central comparison."
         ),
         "ARCHITECTURE": (
             "Use the ARCHITECTURE template only: a vertical Top -> Middle -> Bottom "
-            "system structure with 3-5 connected blocks."
+            "system structure using only the provided nodes."
         ),
     }
     return instructions.get(template, instructions["FLOW"])
 
 
+def image_product_name(release):
+    product = provider_product_label(release).split(" / ")[-1]
+    canonical_products = {
+        "API": "API",
+        "OpenAI": "OpenAI",
+        "ChatGPT": "ChatGPT",
+        "Claude Code": "Claude Code",
+        "Gemini API": "Gemini API",
+        "Gemini": "Gemini",
+        "Vertex AI": "Vertex AI",
+        "DeepMind": "DeepMind",
+    }
+    return canonical_products.get(product, safe_image_text(product, max_chars=24, fallback="Producto IA"))
+
+
+def build_diagram_texts(release, template):
+    raw_text = f"{release.get('title', '')} {release.get('summary', '')} {release.get('link', '')}".lower()
+    provider = canonical_provider_name(provider_name(release))
+    product = image_product_name(release)
+
+    if template == "FLOW":
+        return {
+            "node_1": "Fuente",
+            "node_2": product if product not in {"API", provider} else "Modelo",
+            "node_3": "Aplicación",
+        }
+
+    if template == "BEFORE_AFTER":
+        before = "Proceso manual"
+        after = "Sistema más simple"
+
+        if "claude code" in raw_text:
+            before = "Bloqueos remotos"
+            after = "Login y limpieza simple"
+        elif "deprecated" in raw_text or "deprecation" in raw_text:
+            before = "Endpoints antiguos"
+            after = "Integraciones actualizadas"
+        elif "pricing" in raw_text:
+            before = "Costo poco claro"
+            after = "Precio actualizado"
+        elif "availability" in raw_text or "available" in raw_text:
+            before = "Acceso limitado"
+            after = "Disponible para equipos"
+        elif "lower latency" in raw_text or "latency" in raw_text:
+            before = "Respuesta lenta"
+            after = "Respuesta más rápida"
+
+        return {
+            "before_label": "ANTES",
+            "after_label": "DESPUES",
+            "before_text": safe_image_text(before, fallback="Antes"),
+            "after_text": safe_image_text(after, fallback="Despues"),
+        }
+
+    if "aws" in raw_text and provider == "OpenAI":
+        nodes = ["OpenAI", "AWS", "Apps / Empresas"]
+    else:
+        platform = product
+        if product == "API":
+            platform = "API"
+        nodes = [provider, platform, "Apps / Empresas"]
+
+    return {
+        "top": safe_image_text(nodes[0], max_chars=24, fallback="Proveedor"),
+        "middle": safe_image_text(nodes[1], max_chars=24, fallback="Plataforma"),
+        "bottom": safe_image_text(nodes[2], max_chars=24, fallback="Apps / Empresas"),
+    }
+
+
 def build_image_prompt(release, content_text):
     title = compact_image_title(release)
-    provider_product = provider_product_label(release)
     template = image_template(release)
     template_instruction = image_template_instruction(template)
-    summary = clean_summary_text(release.get("summary", ""))[:500]
+    provider = canonical_provider_name(provider_name(release))
+    product = image_product_name(release)
+    diagram_texts = build_diagram_texts(release, template)
+    safe_summary = safe_image_text(release.get("summary", ""), max_chars=90, fallback="Release confirmado")
 
     return f"""
 Create a 1080x1080 Instagram image with a fixed premium visual identity for "Rodrigo Hered IA".
 Make it look like a real system explanation created by a CTO, not a generic AI poster.
+
+TEXT CONTROL - CRITICAL:
+- ALL TEXT MUST BE EXACTLY AS PROVIDED.
+- Do not invent text.
+- Do not add extra labels.
+- Do not use placeholders.
+- Do not misspell provider names.
+- Use exact brand: "Rodrigo Hered IA".
+- If text is needed in the diagram, use only TITLE, TEMPLATE, DIAGRAM_TEXTS, PROVIDER, PRODUCT, and BRAND below.
+
+ALLOWED TEXT ONLY:
+TITLE: "{title}"
+TEMPLATE: "{template}"
+PROVIDER: "{provider}"
+PRODUCT: "{product}"
+DIAGRAM_TEXTS: {json.dumps(diagram_texts, ensure_ascii=False)}
+BRAND: "Rodrigo Hered IA"
 
 STEP 1 - SELECTED TEMPLATE:
 - Use exactly one visual template: {template}.
@@ -1087,15 +1216,16 @@ STEP 1 - SELECTED TEMPLATE:
 STEP 2 - STRICT 1080x1080 LAYOUT:
 TOP 20%:
 - Strong title, clean and bold.
-- Use this exact title, max 60 characters:
+- Use only this exact title, max 60 characters:
 "{title}"
 
 CENTER 60%:
 - Diagram based on the selected template.
 - {template_instruction}
 - The diagram must communicate what changed, why it matters, and how it works as a system or process.
-- Include a small provider/product label: "{provider_product}".
 - Max 3-5 diagram elements.
+- Use only the provided DIAGRAM_TEXTS for labels.
+- Do not render placeholder text like [X], [Y], TODO, or TBD.
 
 BOTTOM 20%:
 - Use this exact bottom text:
@@ -1135,8 +1265,7 @@ STEP 6 - CONSISTENCY:
 - Professional, CIO-level, educational, high authority.
 
 Context for tone only:
-Release summary: {summary}
-Generated content: {content_text[:900]}
+Release summary: {safe_summary}
 """.strip()
 
 
