@@ -455,6 +455,8 @@ Reglas:
 - Cero jerga innecesaria.
 - Escribe como creador de contenido, no como ingeniero.
 - Mantén precisión, pero simplifica al máximo.
+- Suena como alguien que ya implemento IA en la vida real y sabe donde se pierde tiempo.
+- Autoridad tranquila: claro, directo, con criterio, sin agresividad.
 - No sonar como consultor.
 - No sonar como paper.
 - No incluir tablas.
@@ -473,6 +475,7 @@ FECHA: {today}
 TITULAR:
 1 frase clara y simple, como algo que alguien diria en voz alta.
 Enfocate en beneficio directo, no en el numero de version ni en tono de changelog.
+Puedes usar lenguaje humano o emocional si ayuda: frustracion, bloqueo, ahorro de tiempo o alivio real.
 Evita palabras como "integracion", "configuracion" y "flujo".
 
 QUE CAMBIO:
@@ -485,7 +488,7 @@ POR QUE IMPORTA EN SIMPLE:
 Maximo 3 lineas, explicado para un rector, gerente o emprendedor.
 Debe iniciar con: "Esto significa algo simple:"
 Debe entenderse en 5 segundos. Evita terminos tecnicos si hay una palabra mas simple.
-Traduce todo a impacto practico.
+Traduce todo a impacto practico y conectalo con experiencia real del usuario: tiempo, costo, errores, adopcion o calidad.
 
 EJEMPLO REAL:
 Universidad: 1 ejemplo claro.
@@ -496,7 +499,8 @@ Hook: maximo 12 palabras, conversacional, basado en problema real o beneficio.
 Explicacion: dilo como si se lo contaras a una persona ocupada.
 Impacto: explica que cambia en la vida/trabajo de alguien, sin jerga.
 Accion: una cosa simple que probarias hoy.
-Cierre: no uses CTA generico; refuerza autoridad o valor practico.
+Cierre: no uses CTA generico; refuerza autoridad con tono de experiencia real.
+Ejemplos de tono: "Si trabajas con IA en serio, esto si importa" o "Este tipo de cambios separan el toy del sistema real".
 
 LINK:
 URL verificable.
