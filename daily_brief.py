@@ -704,28 +704,97 @@ def title_is_descriptive(title):
     return len(title.split()) >= 3
 
 
-def build_human_title(article, max_len=110):
+def build_human_title(article, max_len=100):
     link = article.get("link") or ""
-    if product_key(article) == "claude_code" and "#2-1-126" in link:
-        return "Claude Code mejora login remoto, limpieza de proyectos y seleccion de modelos"
-
     title = (article.get("title") or "").replace("\n", " ").strip()
+    summary = clean_summary_text(article.get("summary", ""))
+    raw_text = f"{title} {summary} {link}".lower()
     provider = provider_name(article)
     product = provider_product_label(article).split(" / ")[-1]
 
-    if title_is_descriptive(title):
+    if product_key(article) == "claude_code" and "#2-1-126" in link:
+        return "Claude Code mejora login remoto, limpieza de proyectos y seleccion de modelos"
+    if "come to aws" in raw_text or "comes to aws" in raw_text or "to aws" in raw_text:
+        return "OpenAI lleva sus modelos y agentes a AWS"
+    if "deprecated" in raw_text:
+        return "Gemini elimina funciones antiguas de video y obliga a actualizar integraciones"
+    if "release notes" in raw_text:
+        return "Gemini actualiza capacidades en Vertex AI"
+    if provider == "OpenAI" and ("endpoint" in raw_text or "available" in raw_text or "availability" in raw_text):
+        return "OpenAI actualiza modelos disponibles para desarrolladores"
+
+    english_markers = [
+        "deprecated",
+        "release",
+        "endpoint",
+        "preview",
+        "available",
+        "update",
+        "updates",
+        "adds",
+        "improves",
+        "fixes",
+        "generally available",
+    ]
+    has_english_marker = any(marker in raw_text for marker in english_markers)
+
+    if title_is_descriptive(title) and not has_english_marker:
         final_title = title
     else:
-        summary = human_summary_fragment(article.get("summary", ""))
+        summary = human_summary_fragment(summary)
         if summary:
             prefix = "" if summary.lower().startswith(product.lower()) else f"{product} "
             final_title = f"{prefix}{summary}"
         else:
-            final_title = f"{provider} actualiza {product} con mejoras relevantes"
+            final_title = f"{provider} actualiza {product} con cambios importantes"
 
+    noise_patterns = [
+        r"\bdeprecated\b",
+        r"\bpreview\b",
+        r"\bendpoints?\b",
+        r"\btable describes\b",
+        r"\bfollowing\b",
+        r"\brelease notes\b",
+        r"\bversion\s*\d+(?:\.\d+)*\b",
+        r"\bv?\d+(?:\.\d+){1,3}\b",
+    ]
+    for pattern in noise_patterns:
+        final_title = re.sub(pattern, " ", final_title, flags=re.IGNORECASE)
+
+    replacements = {
+        "Video generation": "funciones de video",
+        "video generation": "funciones de video",
+        "available": "disponible",
+        "Available": "disponible",
+        "generally disponible": "disponible de forma general",
+        "updates": "actualiza",
+        "Updates": "actualiza",
+        "update": "actualiza",
+        "Update": "actualiza",
+        "adds": "agrega",
+        "Adds": "agrega",
+        "improves": "mejora",
+        "Improves": "mejora",
+        "fixes": "corrige",
+        "Fixes": "corrige",
+        "models": "modelos",
+        "model": "modelo",
+        "managed agents": "agentes administrados",
+        "capabilities": "capacidades",
+        "availability": "disponibilidad",
+        "improvements": "mejoras",
+        "customers": "usuarios",
+        "developers": "desarrolladores",
+        "for ": "para ",
+        " and ": " y ",
+    }
+    for old, new in replacements.items():
+        final_title = final_title.replace(old, new)
+
+    final_title = re.sub(r"\s+", " ", final_title)
     final_title = re.sub(r"^\W+", "", final_title).strip().rstrip(".")
     if not title_is_descriptive(final_title):
-        final_title = f"{provider} actualiza {product} con mejoras relevantes"
+        final_title = f"{provider} actualiza {product} con cambios importantes"
 
     if len(final_title) <= max_len:
         return final_title
