@@ -1020,25 +1020,98 @@ def generate_signal(best):
     )
     return response.output_text.strip()
 
-def build_image_prompt(release, content_text):
+
+def compact_image_title(release, max_chars=60):
     title = release.get("human_title") or build_human_title(release)
+    if not title:
+        title = clean_summary_text(release.get("title", ""))
+
+    title = re.sub(r"\s+", " ", title).strip().rstrip(".")
+    title = re.sub(r"\b(v?\d+(?:\.\d+){1,3})\b", "", title, flags=re.IGNORECASE)
+    title = re.sub(r"\s+", " ", title).strip(" -:|")
+
+    if not title:
+        title = f"{provider_name(release)} actualiza {product_key(release)}"
+
+    if len(title) <= max_chars:
+        return title
+    return title[: max_chars - 3].rstrip() + "..."
+
+
+def image_diagram_style(release):
+    text = f"{release.get('title', '')} {release.get('summary', '')} {release.get('link', '')}".lower()
+
+    if _matches_any(text, ["deprecated", "deprecation", "pricing", "availability", "available", "lower latency"]):
+        return (
+            "Before vs After",
+            "Show two clean columns: before on the left, after on the right, with 2 short labels per side.",
+        )
+    if _matches_any(text, ["api", "sdk", "agents", "agent", "tools", "function calling", "vertex ai"]):
+        return (
+            "Simple architecture",
+            "Show 3-5 blocks connected like a product architecture: user, model/API, tools/data, output.",
+        )
+    return (
+        "Flow",
+        "Show a simple A -> B -> C process with 3 clean blocks and directional arrows.",
+    )
+
+
+def build_image_prompt(release, content_text):
+    title = compact_image_title(release)
     provider_product = provider_product_label(release)
+    diagram_style, diagram_instruction = image_diagram_style(release)
+    summary = clean_summary_text(release.get("summary", ""))[:500]
 
     return f"""
-Create a square 1080x1080 Instagram image.
-Style: premium tech editorial, clean dark background, modern composition, high contrast, subtle depth, no clutter.
-Brand text: "Rodri HeredIA".
-Main headline in Spanish, large and legible:
-"{title}"
-Small label:
-"{provider_product}"
+Create a 1080x1080 Instagram image with a fixed premium visual identity for "Rodri HeredIA".
+Make it look like a real system explanation created by a CTO, not a generic AI poster.
 
-Use a sophisticated AI/product release visual language: abstract interface layers, soft light, refined typography, elegant grid, premium newsroom feel.
-Do not use fake logos, screenshots, charts, tables, tiny text, or dense paragraphs.
-The image must feel ready for an Instagram post about this release.
+MANDATORY LAYOUT:
+- Top 20%: short, bold, mobile-readable headline.
+- Center 60%: simple visual diagram explaining the concept.
+- Bottom 20%: subtle, clean brand area with the text "Rodri HeredIA".
+
+HEADLINE:
+- Use this exact headline, maximum 60 characters:
+"{title}"
+- Do not add long subtitles.
+- Avoid technical clutter, version numbers, raw endpoint names, and small unreadable text.
+
+DIAGRAM:
+- Diagram style: {diagram_style}.
+- {diagram_instruction}
+- Max 3-5 diagram elements.
+- The diagram must communicate: what changed, why it matters, and how it looks as a system or process.
+- Include a small provider/product label: "{provider_product}".
+
+VISUAL STYLE:
+- Dark background: black or very dark gray.
+- Minimal, premium, clean.
+- Professional system diagram style.
+- Modern UI feeling.
+- Subtle glow lines and subtle gradients only.
+- High contrast typography.
+- Mobile readable.
+- No clutter.
+- Consistent spacing, clean alignment, sharp hierarchy.
+
+PROHIBITIONS:
+- No robots.
+- No brains.
+- No generic AI glowing art.
+- No stock photo style.
+- No random futuristic fantasy.
+- No excessive text.
+- No tiny unreadable labels.
+- No fake logos, screenshots, charts, tables, or dense paragraphs.
+
+Tone:
+Professional, CIO-level, educational, high authority.
 
 Context for tone only:
-{content_text[:1200]}
+Release summary: {summary}
+Generated content: {content_text[:900]}
 """.strip()
 
 
