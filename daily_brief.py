@@ -20,6 +20,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 RADAR_MODE = os.getenv("RADAR_MODE", "brief").strip().lower()
+SELECT_CHOICE = os.getenv("SELECT_CHOICE", "").strip()
 
 if not OPENAI_API_KEY:
     raise ValueError("Falta OPENAI_API_KEY en .env")
@@ -29,6 +30,8 @@ if not CHAT_ID:
     raise ValueError("Falta TELEGRAM_CHAT_ID en .env")
 if RADAR_MODE not in {"brief", "content"}:
     raise ValueError("RADAR_MODE debe ser 'brief' o 'content'")
+if SELECT_CHOICE and SELECT_CHOICE not in {"1", "2", "3"}:
+    raise ValueError("SELECT_CHOICE debe ser 1, 2 o 3")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -139,16 +142,45 @@ def load_selected_release():
     if data.get("selected_date_utc") != selection_date():
         return False, None
 
-    return True, data.get("release")
+    releases = data.get("releases") or []
+    if not releases and data.get("release"):
+        releases = [data.get("release")]
+
+    choice_index = int(SELECT_CHOICE) - 1 if SELECT_CHOICE else 0
+    if choice_index >= len(releases):
+        return False, None
+
+    selected = releases[choice_index]
+    if SELECT_CHOICE:
+        print(f"SELECT_CHOICE={SELECT_CHOICE}. Usando release #{choice_index + 1}.")
+
+    return True, selected
+
+
+def with_human_title(release):
+    if release:
+        return {**release, "human_title": build_human_title(release)}
+    return None
 
 
 def save_selected_release(release):
-    if release:
-        release = {**release, "human_title": build_human_title(release)}
-
+    release = with_human_title(release)
     payload = {
         "selected_date_utc": selection_date(),
         "release": release,
+        "releases": [release] if release else [],
+    }
+    with open(SELECTED_RELEASE_FILE, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def save_selected_releases(releases):
+    releases = [with_human_title(release) for release in releases]
+    releases = [release for release in releases if release]
+    payload = {
+        "selected_date_utc": selection_date(),
+        "release": releases[0] if releases else None,
+        "releases": releases,
     }
     with open(SELECTED_RELEASE_FILE, "w") as f:
         json.dump(payload, f, indent=2)
@@ -585,14 +617,14 @@ def get_top_release():
     articles, new_seen = fetch_articles_for_selection()
     top_releases = get_top_releases(limit=1, articles=articles)
     best = top_releases[0] if top_releases else None
-    save_selected_release(best)
+    save_selected_releases(top_releases)
     return best, new_seen
 
 
 def get_brief_releases():
     articles, new_seen = fetch_articles_for_selection()
     top_releases = get_top_releases(limit=3, articles=articles)
-    save_selected_release(top_releases[0] if top_releases else None)
+    save_selected_releases(top_releases)
     return top_releases, new_seen
 
 
