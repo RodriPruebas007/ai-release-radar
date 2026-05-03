@@ -604,15 +604,24 @@ def get_top_release():
     Seleccion unica del release del dia.
     brief selecciona y guarda selected_release.json.
     content reutiliza ese archivo para no elegir otro item del mismo changelog.
+    Si content corre manualmente sin cache, reconstruye el Top 3 y continua.
     """
     if RADAR_MODE == "content":
         found, selected = load_selected_release()
-        if not found:
-            raise ValueError(
-                "RADAR_MODE=content requiere selected_release.json generado hoy por RADAR_MODE=brief"
-            )
-        print("Reutilizando release seleccionado desde selected_release.json.")
-        return selected, load_history()
+        if found:
+            print("Reutilizando release seleccionado desde selected_release.json.")
+            return selected, load_history()
+
+        print("No hay selected_release.json valido. Reconstruyendo Top 3 para content.")
+        articles, new_seen = fetch_articles_for_selection()
+        top_releases = get_top_releases(limit=3, articles=articles)
+        save_selected_releases(top_releases)
+
+        choice_index = int(SELECT_CHOICE) - 1 if SELECT_CHOICE else 0
+        selected = top_releases[choice_index] if choice_index < len(top_releases) else None
+        if SELECT_CHOICE and selected:
+            print(f"SELECT_CHOICE={SELECT_CHOICE}. Usando release #{choice_index + 1}.")
+        return selected, new_seen
 
     articles, new_seen = fetch_articles_for_selection()
     top_releases = get_top_releases(limit=1, articles=articles)
