@@ -1317,30 +1317,37 @@ Contexto del item elegido:
         prompt = f"""
 {base_rules}
 
+Vas a entregar contenido listo para 4 canales distintos.
+Cada canal tiene su voz; no copies texto entre canales.
+No incluyas emojis salvo en CAPTION INSTAGRAM (maximo 2).
+No inventes hashtags genericos tipo #IA #tecnologia; usa solo hashtags
+especificos y utiles para audiencia LATAM no tecnica.
+
 Salida obligatoria. Usa exactamente este formato:
 {APP_NAME}
 FECHA: {today}
 
 GUION TIKTOK/REEL 60s:
 Hook: maximo 12 palabras, conversacional, basado en problema real o beneficio.
-Explicacion: dilo como si se lo contaras a una persona ocupada.
-Impacto: explica que cambia en la vida/trabajo de alguien, sin jerga.
-Accion: una cosa simple que probarias hoy.
-Cierre: no uses CTA generico; refuerza autoridad con tono de experiencia real.
+Explicacion: 2-3 lineas, dilo como si se lo contaras a una persona ocupada.
+Impacto: 2 lineas, que cambia en la vida/trabajo de alguien.
+Accion: 1 linea, una cosa simple que probarias hoy.
+Cierre: 1 frase de autoridad tranquila, sin CTA generico.
 
-CAPTION:
-Texto corto para publicar. Humano, claro, con autoridad tranquila.
+CAPTION INSTAGRAM:
+3-4 lineas humanas que enganchen al deslizar. Cierra con una pregunta o
+invitacion concreta. Maximo 5 hashtags al final, todos especificos.
 
-3 HOOKS ALTERNATIVOS:
-1.
-2.
-3.
+POST LINKEDIN:
+4-6 lineas, tono autoridad tranquila. Sin emojis, sin hashtags. Empieza
+con una afirmacion directa, desarrolla el cambio concreto y cierra con
+una linea accionable. Pensado para que un gerente lo guarde o comparta.
 
-PREGUNTA PARA COMENTARIOS:
-Una pregunta concreta, no generica.
-
-FRASE FINAL:
-Debe reforzar autoridad o valor practico. Ejemplos de tono: "Si trabajas con IA en serio, esto si importa" o "Este tipo de cambios separan el toy del sistema real".
+HILO X (4 tweets):
+1/4 - Hook punzante, maximo 240 caracteres.
+2/4 - El cambio concreto en lenguaje simple.
+3/4 - Por que importa para alguien no tecnico, ejemplo claro.
+4/4 - Cierre con una linea memorable + el link.
 
 LINK:
 URL verificable.
@@ -1565,20 +1572,31 @@ mood, not a generic background.
 """.strip()
 
 
-def load_font(size, bold=False):
+FONT_DIR = os.path.join("assets", "fonts")
+DISPLAY_FONT = os.path.join(FONT_DIR, "Anton-Regular.ttf")
+
+
+def load_font(size, bold=False, display=False):
     from PIL import ImageFont
 
-    font_paths = (
-        [
+    if display:
+        # Tipografia editorial condensed para titulares de portada.
+        # Cae a Arial Bold si la fuente bundleada no esta presente.
+        font_paths = [
+            DISPLAY_FONT,
             "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         ]
-        if bold
-        else [
+    elif bold:
+        font_paths = [
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]
+    else:
+        font_paths = [
             "/System/Library/Fonts/Supplemental/Arial.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
-    )
 
     for font_path in font_paths:
         if os.path.exists(font_path):
@@ -1637,17 +1655,17 @@ def wrap_text(text, font, max_width, max_lines, add_ellipsis=True):
     return lines or ["Cambio importante"]
 
 
-def fit_wrapped_title(text, max_width, max_lines=2, start_size=60, min_size=42):
+def fit_wrapped_title(text, max_width, max_lines=2, start_size=60, min_size=42, display=False):
     title = build_short_text_title(text)
 
     for size in range(start_size, min_size - 1, -2):
-        font = load_font(size, bold=True)
+        font = load_font(size, bold=True, display=display)
         lines = wrap_text(title, font, max_width, max_lines, add_ellipsis=False)
         if len(lines) <= max_lines and all(_text_width(line, font) <= max_width for line in lines):
             return font, lines
 
     fallback = _trim_bad_title_ending(safe_image_text(title, max_chars=42, fallback="Cambio importante"))
-    font = load_font(min_size, bold=True)
+    font = load_font(min_size, bold=True, display=display)
     return font, wrap_text(fallback, font, max_width, max_lines, add_ellipsis=False)
 
 
@@ -1807,7 +1825,7 @@ def _draw_magazine_block(draw, headline, today):
     kicker_gap = 28
 
     title_font, title_lines = fit_wrapped_title(
-        headline, max_width, max_lines=3, start_size=128, min_size=72
+        headline, max_width, max_lines=3, start_size=148, min_size=84, display=True
     )
 
     # Medimos el titular usando alturas reales con descenders incluidos.
@@ -1933,10 +1951,27 @@ def send_telegram_photo(file_path, caption=None):
     response.raise_for_status()
 
 
-# -----------------------------
-# Ejecución principal
-# -----------------------------
-if __name__ == "__main__":
+def notify_failure_to_telegram(exc):
+    # Best-effort: si esto falla tambien, dejamos que el workflow lo refleje.
+    import traceback
+
+    summary = f"{type(exc).__name__}: {exc}".strip()[:600]
+    trace_tail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    trace_tail = trace_tail.strip().splitlines()[-6:]
+    trace_block = "\n".join(trace_tail)[:1500]
+
+    text = (
+        f"❌ {APP_NAME} fallo en modo {RADAR_MODE}\n\n"
+        f"{summary}\n\n"
+        f"Traceback (final):\n{trace_block}"
+    )
+    try:
+        send_to_telegram(text)
+    except Exception as inner:
+        print(f"No se pudo enviar la alerta de fallo a Telegram. Error: {inner}")
+
+
+def run_radar():
     image_ready = False
 
     if RADAR_MODE == "brief":
@@ -1958,7 +1993,7 @@ if __name__ == "__main__":
         try:
             send_telegram_photo(
                 INSTAGRAM_IMAGE_PATH,
-                caption="Imagen lista para Instagram - Rodri HeredIA",
+                caption=f"Imagen lista para publicar - {PERSONAL_BRAND}",
             )
         except Exception as exc:
             try:
@@ -1968,3 +2003,14 @@ if __name__ == "__main__":
 
     save_history(new_seen)
     print(f"✅ {APP_NAME} enviado a Telegram.")
+
+
+# -----------------------------
+# Ejecución principal
+# -----------------------------
+if __name__ == "__main__":
+    try:
+        run_radar()
+    except Exception as exc:
+        notify_failure_to_telegram(exc)
+        raise
