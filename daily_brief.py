@@ -879,9 +879,32 @@ EDITORIAL_POOL_SIZE = 8
 
 
 def _selection_pool(articles):
-    # Pool diversificado mas grande (limit=8) para que el editor tenga de
-    # donde escoger. La capa editorial reordena y devuelve los mejores.
-    return get_top_releases(limit=EDITORIAL_POOL_SIZE, articles=articles)
+    # Pool diversificado para que el editor tenga de donde escoger.
+    # Si MIN_RELEASE_SCORE filtra todo (history acumulada + ventana lenta),
+    # caemos a los mejores N por score crudo. Ofrecer algo siempre es mejor
+    # que ofrecer nada; el editor LLM decide la calidad final.
+    pool = get_top_releases(limit=EDITORIAL_POOL_SIZE, articles=articles)
+    if pool:
+        return pool
+
+    print(
+        f"_selection_pool: ningun articulo paso MIN_RELEASE_SCORE={MIN_RELEASE_SCORE}. "
+        f"Total candidatos crudos: {len(articles or [])}. Cayendo a top por score crudo."
+    )
+    if not articles:
+        return []
+
+    scored = []
+    for article in articles:
+        if not article.get("link"):
+            continue
+        scored.append({**article, "release_score": release_score(article)})
+
+    scored.sort(
+        key=lambda a: (a.get("release_score", 0), a.get("published_ts") or 0),
+        reverse=True,
+    )
+    return diversify_releases(scored, limit=EDITORIAL_POOL_SIZE)
 
 
 def get_top_release():
@@ -921,8 +944,10 @@ def get_top_release():
 def get_brief_releases():
     articles, new_seen = fetch_articles_for_selection()
     pool = _selection_pool(articles)
+    print(f"brief: articulos crudos={len(articles)}, pool editorial={len(pool)}")
     enriched = editorial_enrich(pool)
     top_releases = enriched[:3]
+    print(f"brief: enriched={len(enriched)}, top3={len(top_releases)}")
     save_selected_releases(top_releases)
     return top_releases, new_seen
 
