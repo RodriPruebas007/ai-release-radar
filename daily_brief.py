@@ -42,16 +42,11 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # Configuración
 # -----------------------------
 OFFICIAL_SOURCES = [
-    # OpenAI News. TODO: OpenAI API changelog no expone RSS oficial estable.
-    "https://openai.com/news/rss.xml",
-    # Claude Code changelog. TODO: Claude app release notes y Anthropic API release notes no exponen RSS oficial estable.
-    "https://code.claude.com/docs/en/changelog/rss.xml",
-    # Vertex AI Generative AI release notes.
-    "https://docs.cloud.google.com/feeds/generative-ai-on-vertex-ai-release-notes.xml",
-    # Google Gemini product updates. TODO: Gemini API changelog no expone RSS oficial estable.
-    "https://blog.google/products-and-platforms/products/gemini/rss/",
-    # Google DeepMind blog.
-    "https://deepmind.google/blog/rss.xml",
+    "https://edsurge.com/articles_rss",           # EdSurge - EdTech news K12 y Higher Ed
+    "https://www.eschoolnews.com/feed",            # eSchool News - tecnología educativa
+    "https://www.insidehighered.com/rss.xml",      # Inside Higher Ed - educación superior
+    "https://highereddive.com/feeds/news",         # Higher Ed Dive - tendencias universitarias
+    "https://www.edtechreview.in/feed",            # EdTech Review - comunidad global EdTech
 ]
 
 OFFICIAL_DOMAINS = {
@@ -99,12 +94,11 @@ KEYWORDS = [
 # Fuentes editoriales: cubren lanzamientos virales y cobertura curada
 # que no aparece en RSS oficiales.
 EDITORIAL_RSS_SOURCES = [
-    # TechCrunch tag IA: cobertura editorial diaria.
-    "https://techcrunch.com/category/artificial-intelligence/feed/",
-    # The Verge AI: cobertura editorial de producto.
-    "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
-    # MIT Technology Review IA.
-    "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+    "https://ww2.kqed.org/mindshift/feed",         # MindShift KQED - innovación pedagógica
+    "https://shakeuplearning.com/feed",            # Shake Up Learning - aprendizaje digital
+    "https://the74million.org/feed",               # The 74 - periodismo educativo
+    "https://www.teachercast.net/feed",            # TeacherCast - recursos para docentes
+    "https://www.edtechroundup.org/1/feed",        # Ed Tech Roundup - noticias y reseñas EdTech
 ]
 
 # Hacker News (Algolia): captura lanzamientos comentados el mismo dia.
