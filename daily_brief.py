@@ -130,8 +130,8 @@ BRAND_AVATAR_PATH = os.path.join("assets", "brand", "rodrigo.png")
 RECENT_HOURS = 72  # solo tendencias recientes (3 dias)
 MIN_RELEASE_SCORE = 45
 
-APP_NAME = "NotiAgente Hered-IA"
-PERSONAL_BRAND = "Rodrigo Hered IA"
+APP_NAME = " NotiTech Lucía AI"
+PERSONAL_BRAND = "Lucía Martínez"
 
 def is_recent(published_ts, hours=RECENT_HOURS):
     if not published_ts:
