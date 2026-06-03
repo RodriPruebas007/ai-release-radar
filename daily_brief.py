@@ -831,10 +831,10 @@ Para CADA candidato, devuelves un objeto con:
     80-100 = lanzamiento real, novedad clara, accionable o con impacto inmediato para no tecnicos.
     50-79  = cambio relevante pero incremental.
     0-49   = cosmetico, niche, sin angulo claro.
-- headline_es: titular humano en espanol natural, 8-14 palabras.
-    No Spanglish. No traduccion literal. No numeros de version.
-    No frases tipo "actualiza con cambios importantes".
-    Suena como algo que un creador diria en voz alta.
+- headline_es: titular casual y divertido en español natural, 8-14 palabras.
+    Con humor sutil, tono de redes sociales. No Spanglish. No traducción literal. No números de versión.
+    No frases aburridas o corporativas.
+    Suena como algo que compartirías en tus stories sin pensarlo dos veces.
 - hook: una linea (max 18 palabras) que explique por que importa para alguien NO tecnico.
     No repetir el titular. Sin jerga. Concreto.
 - image_concept: descripcion visual EN INGLES (25-55 palabras) de UNA sola
