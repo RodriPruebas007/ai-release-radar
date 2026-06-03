@@ -820,7 +820,7 @@ def _editorial_prompt(candidates):
 
     return f"""
 Actuas como editor jefe de un canal de IA en espanol para LATAM.
-Audiencia: rectores, gerentes, emprendedores, builders y creators NO tecnicos.
+Audiencia: abogados y profesionales legales en Latinoamérica.
 Tu trabajo es decidir cual lanzamiento merece publicacion hoy y como contarlo.
 
 Recibes una lista de candidatos detectados por un radar de releases.
